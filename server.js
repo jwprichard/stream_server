@@ -4,20 +4,11 @@ var WebSocket = require("ws");
 var cors = require("cors");
 var needle = require("needle");
 
-// Import the natural analizers
-const Analyzer = require("natural").SentimentAnalyzer;
-const stemmer = require("natural").PorterStemmer;
-
 var app = express();
 var server = http.createServer(app);
 var wss = new WebSocket.Server({ server: server });
 
 require("dotenv").config();
-
-wss.on("connection", (ws) => {
-  console.log("connection");
-});
-
 app.use(cors());
 
 function analizeText(data) {
@@ -30,9 +21,10 @@ function analizeText(data) {
   return data;
 }
 
-function sendData(data, wss) {
+function sendData(data) {
   console.log("here");
   var clients = wss.clients;
+  console.log(clients.size);
   clients.forEach((client) => {
     console.log(data);
     client.send(JSON.stringify(data));
@@ -55,11 +47,8 @@ function streamConnect(retryAttempt) {
     .on("data", (data) => {
       try {
         const json = JSON.parse(data);
-
-        var tweet = analizeText(json.data);
-        //console.log(json);
-        sendData(tweet, wss);
-        //ws.send(JSON.stringify(json));
+	console.log(json);	
+        sendData(json);
         retryAttempt = 0;
       } catch (err) {
         if (data.status === 401) {
@@ -83,17 +72,18 @@ function streamConnect(retryAttempt) {
       } else {
         setTimeout(() => {
           console.warn("A connection error occurred. Reconnecting...");
-          streamConnect(++retryAttempt, ws);
+          streamConnect(++retryAttempt);
         }, 2 ** retryAttempt);
       }
     });
   return stream;
 }
 
-app.use("/", function (req, res) {
-  streamConnect(0);
-  res.send("hey");
-});
+streamConnect(0);
+
+//app.use("/", function (req, res) {
+//  res.send("hey");
+//});
 
 var port = normalizePort("8080");
 app.set("port", port);
